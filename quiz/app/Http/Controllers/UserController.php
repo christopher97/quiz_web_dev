@@ -7,7 +7,6 @@ use App\Models\User;
 use JWTAuth;
 use Tymon\JWTAuth\Exceptions\JWTException;
 use Validator, Hash;
-use Illuminate\Support\Facades\Password;
 
 class UserController extends Controller
 {
@@ -48,9 +47,15 @@ class UserController extends Controller
             'password' => Hash::make($password)
         ];
 
-        $user = $this->user->create($user);
+        try {
+            $user = $this->user->create($user);
+        } catch(Exception $e) {
+            return response()->json(['success' => false, 'message' => 'User already exists!'], 409);
+        }
 
-        return response()->json(['success' => 'true', 'message' => 'Registration Successful!'], 201);
+        $token = JWTAuth::fromUser($user);
+
+        return response()->json(['success' => true, 'token' => $token], 201);
     }
 
     /**
@@ -74,8 +79,8 @@ class UserController extends Controller
 
         try {
             // attempt to verify the credentials and create a token for the user
-            if (! $token = JWTAuth::attempt($credentials)) {
-                return response()->json(['success' => false, 'error' => 'We cant find an account with this credentials. Please make sure you entered the right information and you have verified your email address.'], 401);
+            if (!$token = JWTAuth::attempt($credentials)) {
+                return response()->json(['success' => false, 'error' => 'Account not found. Please make sure you entered the right information and you have verified your email address.'], 401);
             }
         } catch (JWTException $e) {
             // something went wrong whlist attempting to encode the token
